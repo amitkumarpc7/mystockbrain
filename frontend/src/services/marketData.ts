@@ -1,40 +1,37 @@
 import axios from "axios";
 import type { Candle, Market } from "../types";
-
-// Yahoo Finance chart endpoint works for US + NSE/BSE tickers like RELIANCE.NS
-const YAHOO_CHART_BASE_URL =
-  "https://query1.finance.yahoo.com/v8/finance/chart";
+import { API_BASE_URL } from "../config";
 
 export async function fetchDailyCandles(
   symbol: string,
   _market: Market
 ): Promise<Candle[]> {
-  // _market kept for future provider routing, not used for Yahoo
-  const url = `${YAHOO_CHART_BASE_URL}/${encodeURIComponent(symbol)}`;
-
-  const params = {
-    range: "5y", // last 5 years of data
-    interval: "1d", // daily candles
-  };
+  const url = `${API_BASE_URL}/candles/${encodeURIComponent(symbol)}`;
+  // Backend might ignore these params if it's just proxying, but good to keep if backend supports it later
+  // or if we need to pass them to the backend to pass to Yahoo.
+  // Based on user request, backend just exposes /api/candles/:symbol
+  // We'll assume the backend handles the range/interval defaults or we can pass them if needed.
+  // The user example didn't show query params, but standard Yahoo often takes them.
+  // We'll send them just in case the backend forwards them, or ignore if not.
+  // Actually, the user prompt says: "GET http://localhost:4000/api/candles/:symbol"
+  // It doesn't explicitly say it accepts query params, but it's safer to just call the URL as requested.
 
   try {
-    const response = await axios.get(url, { params });
+    const response = await axios.get(url);
     const data = response.data;
 
     const result = data?.chart?.result?.[0];
     const error = data?.chart?.error;
 
     if (error || !result) {
-      throw new Error(
-        error?.description || "No market data found for this symbol."
-      );
+      throw new Error(error?.description || "No market data found for this symbol.");
     }
 
     const timestamps: number[] = result.timestamp;
     const quote = result.indicators?.quote?.[0];
 
     if (!timestamps || !quote) {
-      throw new Error("Invalid data format from Yahoo Finance.");
+      throw new Error("Invalid candle data format.");
     }
 
     const { open, high, low, close, volume } = quote;
@@ -47,13 +44,18 @@ export async function fetchDailyCandles(
         const c = close?.[i];
         const v = volume?.[i];
 
-        // Skip incomplete rows
-        if (o == null || h == null || l == null || c == null || v == null) {
+        if (
+          o == null ||
+          h == null ||
+          l == null ||
+          c == null ||
+          v == null
+        ) {
           return null;
         }
 
         return {
-          date: new Date(ts * 1000).toISOString().slice(0, 10), // YYYY-MM-DD
+          date: new Date(ts * 1000).toISOString().slice(0, 10),
           open: Number(o),
           high: Number(h),
           low: Number(l),
@@ -63,7 +65,6 @@ export async function fetchDailyCandles(
       })
       .filter((c): c is Candle => !!c && !Number.isNaN(c.close));
 
-    // Yahoo already returns oldest → newest for this endpoint, but keep this for safety
     candles.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -74,10 +75,7 @@ export async function fetchDailyCandles(
 
     return candles;
   } catch (error: any) {
-    console.error(
-      "Error fetching candles from Yahoo Finance:",
-      error?.response?.data || error
-    );
+    console.error("Error fetching candles via API:", error?.response?.data || error);
     throw new Error(error?.message || "Failed to fetch market data.");
   }
 }

@@ -28,12 +28,19 @@ export default function StockPage() {
       setError(null);
       try {
         // Parallel fetching
+        // For Indian stocks, Yahoo uses "RELIANCE.NS" but Finnhub usually expects "RELIANCE" (or "RELIANCE.NS" might fail).
+        // The user requested: "The symbol passed to fetchFundamentalsOverview must match what backend expects for Finnhub (e.g. "AAPL", "RELIANCE", "TCS", etc)"
+        // So we strip .NS for fundamentals if market is IN.
+        const finnhubSymbol = (market === 'IN' && symbol.endsWith('.NS')) 
+          ? symbol.replace('.NS', '') 
+          : symbol;
+
         const [candles, overview, income, balance, cash] = await Promise.all([
           fetchDailyCandles(symbol, market),
-          fetchFundamentalsOverview(symbol),
-          fetchIncomeStatement(symbol),
-          fetchBalanceSheet(symbol),
-          fetchCashFlow(symbol)
+          fetchFundamentalsOverview(finnhubSymbol),
+          fetchIncomeStatement(finnhubSymbol),
+          fetchBalanceSheet(finnhubSymbol),
+          fetchCashFlow(finnhubSymbol)
         ]);
 
         // Process FA
@@ -167,7 +174,7 @@ export default function StockPage() {
 
       <footer className="text-center text-slate-600 text-sm mt-12 border-t border-slate-900 pt-6">
         <p>This is an educational tool. Not investment advice.</p>
-        <p className="mt-1">Data provided by Alpha Vantage. API limits may apply.</p>
+        <p className="mt-1">Market Data & Fundamentals via Custom Backend</p>
       </footer>
     </div>
   );

@@ -10,29 +10,7 @@ function sma(values: number[], period: number): number | null {
 function rsi(values: number[], period = 14): number | null {
   if (values.length < period + 1) return null;
 
-  let gains = 0;
-  let losses = 0;
-
-  // Calculate initial average gain/loss
-  for (let i = 1; i <= period; i++) {
-    const change = values[i] - values[i - 1];
-    if (change > 0) gains += change;
-    else losses += Math.abs(change);
-  }
-
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-
-  // Smooth subsequent steps (Wilder's Smoothing)
-  // We need to calculate RSI for the whole series to get the correct current RSI?
-  // Standard RSI usually requires a rolling calculation.
-  // For simplicity in this "Snapshot" app, let's calculate it over the available data properly.
-  
-  // Actually, to get the *latest* RSI correctly, we should iterate from the beginning.
-  // But for this assignment, let's do a simple loop over the whole dataset if possible, 
-  // or just enough to stabilize. 200-300 points is usually enough.
-  
-  // Let's re-implement standard RSI loop
+  // Calculate changes
   const changes: number[] = [];
   for (let i = 1; i < values.length; i++) {
     changes.push(values[i] - values[i - 1]);
